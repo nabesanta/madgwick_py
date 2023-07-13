@@ -20,10 +20,11 @@ import warnings
 import numpy as np
 from numpy.linalg import norm
 from .quaternion import Quaternion
+from scipy.spatial.transform import Rotation as R
 
 
 class MadgwickAHRS:
-    samplePeriod = 1/256
+    samplePeriod = 1/100
     quaternion = Quaternion(1, 0, 0, 0)
     beta = 1
     zeta = 0
@@ -76,6 +77,7 @@ class MadgwickAHRS:
         b = np.array([0, norm(h[1:3]), 0, h[3]])
 
         # Gradient descent algorithm corrective step
+        # 勾配降下アルゴリズム補正ステップ
         f = np.array([
             2*(q[1]*q[3] - q[0]*q[2]) - accelerometer[0],
             2*(q[0]*q[1] + q[2]*q[3]) - accelerometer[1],
@@ -108,6 +110,7 @@ class MadgwickAHRS:
         q += qdot * self.samplePeriod
         self.quaternion = Quaternion(q / norm(q))  # normalise quaternion
 
+    # 6軸IMUの場合
     def update_imu(self, gyroscope, accelerometer):
         """
         Perform one update step with data from a IMU sensor array
@@ -143,5 +146,9 @@ class MadgwickAHRS:
         qdot = (q * Quaternion(0, gyroscope[0], gyroscope[1], gyroscope[2])) * 0.5 - self.beta * step.T
 
         # Integrate to yield quaternion
+        # 姿勢の正規化
+        # qが現在の姿勢
         q += qdot * self.samplePeriod
+        roll, pitch, yaw = to_euler123(quaternion)
         self.quaternion = Quaternion(q / norm(q))  # normalise quaternion
+        return roll, pitch, yaw
